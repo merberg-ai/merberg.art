@@ -1,0 +1,47 @@
+{
+  "site": {
+    "title": "merberg.art",
+    "subtitle": "🧠",
+    "accent": "#ff8a3d",
+    "navbar": [
+      {
+        "label": "Home",
+        "url": "index.php"
+      },
+      {
+        "label": "Projects",
+        "url": "projects.php"
+      },
+      {
+        "label": "About",
+        "url": "about.php"
+      }
+    ]
+  },
+  "security": {
+    "api_token": ""
+  },
+  "printers": [
+    {
+      "id": "aquila_s3",
+      "name": "Aquila S3 (Klipper)",
+      "type": "moonraker",
+      "base_url": "http://192.168.1.165:7125",
+      "webcam_url": "http://merberg.art/aquila/?action=stream",
+      "enabled": true
+    },
+    {
+      "id": "ender3v3se",
+      "name": "Ender 3 V3 SE (Klipper)",
+      "type": "moonraker",
+      "base_url": "http://192.168.1.11:6969",
+      "api_key": "kcZ91QAFCRuQWLMTFtB62y22aF2vXsfgzR0yoeBR8dM",
+      "webcam_url": "https://merberg.art/ender/webcam/?action=stream",
+      "enabled": true
+    }
+  ],
+  "ai": {
+    "ollama_url": "http://192.168.1.24:11434",
+    "model": "printer-llama"
+  }
+}

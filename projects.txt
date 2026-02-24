@@ -1,0 +1,16 @@
+
+
+# Active Projects
+
+This section outlines the current and archived projects within the merberg.art workshop.
+
+## 3D Printing & Design
+- **High-Flow Extrusion Systems**: Testing reclaimed hardware for high-speed print macros.
+- **Cinematic Lighting**: Integrated LED systems for workshop visualization.
+
+## AI Research & Integration
+- **Latent Space Synthesis**: Converting text prompts into functional 3D printable geometry.
+- **Video Temporal Stability**: Refining cross-frame consistency for AI-generated workshop documentation.
+
+---
+[SYSTEM READY]
