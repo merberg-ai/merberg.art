@@ -38,10 +38,10 @@ return [
       'name' => 'Centauri Carbon 2',
       'type' => 'cc2dash',
       // Example: cc2-dash usually runs on port 8088.
-      'base_url' => 'http://192.168.1.24:8088',
+      'base_url' => 'http://192.168.1.20:8088',
       // The printer id known by cc2-dash. If unsure, check /api/printers on cc2-dash.
-      'cc2_printer_id' => 'default',
-      'enabled' => false,
+      'cc2_printer_id' => 'f01ut8fkfz1hfnr',
+      'enabled' => true,
       'stream' => [
         'enabled' => true,
         // true = merberg.art proxies the stream from your LAN server.
@@ -58,7 +58,7 @@ return [
       'id' => 'aquila_s3',
       'name' => 'Aquila S3 (Klipper)',
       'type' => 'moonraker',
-      'base_url' => 'http://192.168.1.165:7125',
+      'base_url' => 'http://192.168.1.165:6969',
       'enabled' => false,
       'stream' => [
         'enabled' => true,
