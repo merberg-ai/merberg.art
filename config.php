@@ -59,7 +59,7 @@ return [
       'name' => 'Aquila S3 (Klipper)',
       'type' => 'moonraker',
       'base_url' => 'http://192.168.1.165:6969',
-      'enabled' => false,
+      'enabled' => true,
       'stream' => [
         'enabled' => true,
         'proxy' => false,
