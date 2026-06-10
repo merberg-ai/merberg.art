@@ -182,6 +182,10 @@ function firstDefined(...vals) {
   return undefined;
 }
 
+function firstPath(obj, paths) {
+  return firstDefined(...paths.map((path) => pickPath(obj, path)));
+}
+
 function buildFieldDetails(id, field) {
   const card = lastCardsById?.[id] || {};
   const rawWrap = lastRawById?.[id] || {};
@@ -216,18 +220,29 @@ function buildFieldDetails(id, field) {
     upstream = firstDefined(
       pickPath(raw, 'objects_query.result.status.extruder'),
       pickPath(raw, 'printer.temperature.tool0'),
-      pickPath(cc2, 'hotend'),
-      pickPath(cc2, 'nozzle'),
-      pickPath(cc2, 'extruder'),
-      pickPath(cc2, 'print_status.nozzle')
+      firstPath(cc2, [
+        'hotend', 'nozzle', 'tool0', 'extruder',
+        'temps.hotend', 'temps.nozzle', 'temperature.nozzle', 'temperature.tool0',
+        'temperatures.nozzle', 'temperatures.hotend', 'temperatures.tool0',
+        'printer.temperature.tool0', 'printer.temperatures.tool0',
+        'print_status.nozzle', 'printStatus.nozzle',
+        'nozzle_temp', 'hotend_temp', 'extruder_temp',
+        'nozzleTemp', 'hotendTemp', 'extruderTemp',
+      ])
     );
   } else if (field === 'bed') {
     upstream = firstDefined(
       pickPath(raw, 'objects_query.result.status.heater_bed'),
       pickPath(raw, 'printer.temperature.bed'),
-      pickPath(cc2, 'bed'),
-      pickPath(cc2, 'heater_bed'),
-      pickPath(cc2, 'print_status.bed')
+      firstPath(cc2, [
+        'bed', 'heater_bed', 'heaterBed',
+        'temps.bed', 'temperature.bed', 'temperatures.bed',
+        'printer.temperature.bed', 'printer.temperatures.bed',
+        'print_status.bed', 'printStatus.bed',
+        'bed_temp', 'bed_actual', 'bed_temperature',
+        'bedTemp', 'bedActual', 'bedTemperature',
+        'heater_bed_temp', 'heaterBedTemp',
+      ])
     );
   }
 

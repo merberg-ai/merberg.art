@@ -145,8 +145,15 @@ function portal_temp_from($raw, array $paths): array
 {
   $node = portal_first_path($raw, $paths);
   if (is_array($node)) {
-    $temp = portal_first_path($node, ['temp', 'actual', 'current', 'temperature', 'value']);
-    $target = portal_first_path($node, ['target', 'target_temp', 'setpoint', 'goal']);
+    $temp = portal_first_path($node, [
+      'temp', 'actual', 'current', 'temperature', 'value',
+      'current_temp', 'current_temperature', 'actual_temp', 'actual_temperature',
+      'currentTemp', 'currentTemperature', 'actualTemp', 'actualTemperature',
+    ]);
+    $target = portal_first_path($node, [
+      'target', 'target_temp', 'target_temperature', 'setpoint', 'goal',
+      'targetTemp', 'targetTemperature',
+    ]);
     return [
       'temp' => portal_number_or_null($temp),
       'target' => portal_number_or_null($target),
@@ -319,22 +326,41 @@ function portal_status_octoprint(array $printer): array
   ];
 }
 
+function portal_looks_like_cc2dash_status(array $node): bool
+{
+  return portal_first_path($node, [
+    'state', 'printer_state', 'connection_state', 'progress',
+    'hotend', 'nozzle', 'extruder', 'tool0', 'bed', 'heater_bed', 'heaterBed',
+    'nozzle_temp', 'hotend_temp', 'extruder_temp', 'bed_temp',
+    'nozzleTemp', 'hotendTemp', 'extruderTemp', 'bedTemp',
+    'temperature.nozzle', 'temperature.tool0', 'temperature.bed',
+    'temperatures.nozzle', 'temperatures.hotend', 'temperatures.tool0', 'temperatures.bed',
+    'print_status.nozzle', 'print_status.bed', 'printStatus.nozzle', 'printStatus.bed',
+  ]) !== null;
+}
+
 function portal_extract_cc2dash_payload(array $raw, string $printerId): array
 {
-  // /api/kiosk/status/{id} normally returns the object directly.
-  if (isset($raw['id']) || isset($raw['state']) || isset($raw['status']) || isset($raw['printer'])) return $raw;
+  $containers = ['printers', 'statuses', 'data', 'cards', 'printer', 'status', 'result'];
 
-  // /api/status variants may be a list, a map keyed by id, or {printers:[...]}.
-  foreach (['printers', 'statuses', 'data', 'cards'] as $key) {
+  foreach ($containers as $key) {
     if (!isset($raw[$key]) || !is_array($raw[$key])) continue;
     $node = $raw[$key];
+
     if (array_key_exists($printerId, $node) && is_array($node[$printerId])) return $node[$printerId];
+    if (($node['id'] ?? $node['printer_id'] ?? $node['printerId'] ?? '') === $printerId) return $node;
+    if (portal_looks_like_cc2dash_status($node)) return $node;
+
     foreach ($node as $item) {
-      if (is_array($item) && (($item['id'] ?? $item['printer_id'] ?? '') === $printerId)) return $item;
+      if (is_array($item) && (($item['id'] ?? $item['printer_id'] ?? $item['printerId'] ?? '') === $printerId)) return $item;
     }
   }
 
   if (array_key_exists($printerId, $raw) && is_array($raw[$printerId])) return $raw[$printerId];
+
+  // /api/kiosk/status/{id} normally returns the object directly.
+  if (isset($raw['id']) || isset($raw['state']) || isset($raw['status']) || isset($raw['printer'])) return $raw;
+
   return $raw;
 }
 
@@ -397,21 +423,52 @@ function portal_status_cc2dash(array $printer): array
 
   $hotend = portal_temp_from($p, [
     'hotend', 'nozzle', 'tool0', 'extruder', 'temps.hotend', 'temps.nozzle', 'temperature.nozzle',
-    'temperature.tool0', 'printer.temperature.tool0', 'print_status.nozzle', 'machine_status.nozzle'
+    'temperature.tool0', 'temperatures.nozzle', 'temperatures.hotend', 'temperatures.tool0',
+    'printer.temperature.tool0', 'printer.temperatures.tool0', 'printer.nozzle', 'printer.hotend',
+    'print_status.nozzle', 'printStatus.nozzle', 'machine_status.nozzle', 'machineStatus.nozzle'
   ]);
   // Direct scalar fallbacks.
   if ($hotend['temp'] === null) {
-    $hotend['temp'] = portal_number_or_null(portal_first_path($p, ['nozzle_temp', 'hotend_temp', 'extruder_temp', 'print_status.nozzle_temp']));
-    $hotend['target'] = portal_number_or_null(portal_first_path($p, ['nozzle_target', 'hotend_target', 'extruder_target', 'print_status.nozzle_target']));
+    $hotend['temp'] = portal_number_or_null(portal_first_path($p, [
+      'nozzle_temp', 'hotend_temp', 'extruder_temp', 'tool0_temp',
+      'nozzle_actual', 'hotend_actual', 'extruder_actual', 'tool0_actual',
+      'nozzle_temperature', 'hotend_temperature', 'extruder_temperature',
+      'nozzleTemp', 'hotendTemp', 'extruderTemp', 'tool0Temp',
+      'nozzleActual', 'hotendActual', 'extruderActual',
+      'nozzleTemperature', 'hotendTemperature', 'extruderTemperature',
+      'print_status.nozzle_temp', 'print_status.nozzle_actual', 'printStatus.nozzleTemp',
+      'machine_status.nozzle_temp', 'machineStatus.nozzleTemp',
+    ]));
+    $hotend['target'] = portal_number_or_null(portal_first_path($p, [
+      'nozzle_target', 'hotend_target', 'extruder_target', 'tool0_target',
+      'nozzle_target_temp', 'hotend_target_temp', 'extruder_target_temp',
+      'nozzleTarget', 'hotendTarget', 'extruderTarget', 'tool0Target',
+      'nozzleTargetTemp', 'hotendTargetTemp', 'extruderTargetTemp',
+      'print_status.nozzle_target', 'printStatus.nozzleTarget',
+      'machine_status.nozzle_target', 'machineStatus.nozzleTarget',
+    ]));
   }
 
   $bed = portal_temp_from($p, [
-    'bed', 'heater_bed', 'temps.bed', 'temperature.bed', 'printer.temperature.bed',
-    'print_status.bed', 'machine_status.bed'
+    'bed', 'heater_bed', 'heaterBed', 'temps.bed', 'temperature.bed', 'temperatures.bed',
+    'printer.temperature.bed', 'printer.temperatures.bed', 'printer.bed',
+    'print_status.bed', 'printStatus.bed', 'machine_status.bed', 'machineStatus.bed'
   ]);
   if ($bed['temp'] === null) {
-    $bed['temp'] = portal_number_or_null(portal_first_path($p, ['bed_temp', 'bed_actual', 'print_status.bed_temp']));
-    $bed['target'] = portal_number_or_null(portal_first_path($p, ['bed_target', 'print_status.bed_target']));
+    $bed['temp'] = portal_number_or_null(portal_first_path($p, [
+      'bed_temp', 'bed_actual', 'bed_temperature',
+      'bedTemp', 'bedActual', 'bedTemperature',
+      'heater_bed_temp', 'heater_bed_actual', 'heater_bed_temperature',
+      'heaterBedTemp', 'heaterBedActual', 'heaterBedTemperature',
+      'print_status.bed_temp', 'print_status.bed_actual', 'printStatus.bedTemp',
+      'machine_status.bed_temp', 'machineStatus.bedTemp',
+    ]));
+    $bed['target'] = portal_number_or_null(portal_first_path($p, [
+      'bed_target', 'bed_target_temp', 'bedTarget', 'bedTargetTemp',
+      'heater_bed_target', 'heater_bed_target_temp', 'heaterBedTarget', 'heaterBedTargetTemp',
+      'print_status.bed_target', 'printStatus.bedTarget',
+      'machine_status.bed_target', 'machineStatus.bedTarget',
+    ]));
   }
 
   $state = portal_fmt_state($state, 'unknown');
