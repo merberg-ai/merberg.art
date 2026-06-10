@@ -7,7 +7,7 @@ if (!$config) {
   die("Invalid config.php");
 }
 $site = $config['site'] ?? [];
-$title = htmlspecialchars($site['title'] ?? '[printer portal]');
+$title = htmlspecialchars($site['title'] ?? '[merberg.art v2.0.0]');
 $subtitle = htmlspecialchars($site['subtitle'] ?? '');
 $accent = $site['accent'] ?? '#7c3aed';
 $navbar = $site['navbar'] ?? [];
@@ -25,7 +25,7 @@ $aboutContent = file_exists($aboutFile) ? file_get_contents($aboutFile) : "About
     <title>
         <?= $title ?> - About
     </title>
-    <link rel="stylesheet" href="assets/style.css?v=14" />
+    <link rel="stylesheet" href="assets/style.css?v=2.0.0" />
     <style>
         :root {
             --accent:
@@ -111,12 +111,12 @@ $aboutContent = file_exists($aboutFile) ? file_get_contents($aboutFile) : "About
     </div>
 
     <footer class="footer">
-        <span class="dim">[printer portal]</span>
+        <span class="dim">[merberg.art v2.0.0]</span>
         <span class="dot">•</span>
-        <span class="dim">merberg.art - current printer activity</span>
+        <span class="dim">cc2-dash / moonraker / octoprint portal</span>
     </footer>
 
-    <script src="assets/app.js?v=13"></script>
+    <script src="assets/app.js?v=2.0.0"></script>
     <script>window.addEventListener('load', () => document.body.classList.add('loaded'));</script>
 </body>
 
