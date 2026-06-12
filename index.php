@@ -74,8 +74,7 @@ if (!$newsItems) $newsItems = ['System Ready.'];
     <section class="hero card portalHero">
       <div>
         <div class="eyebrow">MERBERG.ART // V<?= mb_h($version) ?></div>
-        <h1>Printer portal, project hub, and LAN status window.</h1>
-        <p>Now wired for cc2-dash, Moonraker/Klipper, and OctoPrint. Configure your endpoints once, then let the glassy little gob—actually no, the glassy little dashboard do its job.</p>
+        <h1>Lab portal</h1>
       </div>
       <div class="heroStats">
         <div><span><?= count($printers) ?></span><small>enabled printers</small></div>
