@@ -8,7 +8,7 @@
  */
 
 return [
-  'version' => '2.0.0',
+  'version' => '2.0.1',
 
   'site' => [
     'title' => 'merberg.art',
@@ -60,12 +60,19 @@ return [
       'type' => 'moonraker',
       'base_url' => 'http://192.168.1.165:7125',
       'enabled' => false,
+      // Option A: set stream.url directly to the Crowsnest/Mainsail MJPEG URL.
+      // {host} expands from base_url, so this becomes http://192.168.1.165:8080/webcam/?action=stream
       'stream' => [
         'enabled' => true,
-        'proxy' => false,
+        'proxy' => true,
         'use_stream' => true,
-        'url' => 'http://merberg.art/aquila/?action=stream',
+        'url' => 'http://{host}:8080/webcam/?action=stream',
       ],
+      // Option B: leave stream.url blank and enable this helper instead.
+      // 'crowsnest_enabled' => true,
+      // 'crowsnest_port' => 8080,
+      // 'crowsnest_stream_path' => '/webcam/?action=stream',
+      // 'crowsnest_snapshot_path' => '/webcam/?action=snapshot',
     ],
 
     [

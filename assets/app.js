@@ -219,7 +219,9 @@ function buildFieldDetails(id, field) {
       pickPath(cc2, 'hotend'),
       pickPath(cc2, 'nozzle'),
       pickPath(cc2, 'extruder'),
-      pickPath(cc2, 'print_status.nozzle')
+      pickPath(cc2, 'print_status.nozzle'),
+      { current: pickPath(cc2, 'hotend_current'), target: pickPath(cc2, 'hotend_target') },
+      pickPath(cc2, 'raw.normalized.temps.nozzle')
     );
   } else if (field === 'bed') {
     upstream = firstDefined(
@@ -227,7 +229,9 @@ function buildFieldDetails(id, field) {
       pickPath(raw, 'printer.temperature.bed'),
       pickPath(cc2, 'bed'),
       pickPath(cc2, 'heater_bed'),
-      pickPath(cc2, 'print_status.bed')
+      pickPath(cc2, 'print_status.bed'),
+      { current: pickPath(cc2, 'bed_current'), target: pickPath(cc2, 'bed_target') },
+      pickPath(cc2, 'raw.normalized.temps.bed')
     );
   }
 

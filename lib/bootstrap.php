@@ -75,12 +75,41 @@ function mb_cc2dash_printer_id(array $printer): string
   return (string)($printer['cc2_printer_id'] ?? $printer['printer_id'] ?? $printer['id'] ?? 'default');
 }
 
+function mb_base_host(array $printer): string
+{
+  $base = (string)($printer['base_url'] ?? '');
+  $host = parse_url($base, PHP_URL_HOST);
+  return is_string($host) ? $host : '';
+}
+
+function mb_base_scheme(array $printer): string
+{
+  $base = (string)($printer['base_url'] ?? '');
+  $scheme = parse_url($base, PHP_URL_SCHEME);
+  return is_string($scheme) && $scheme !== '' ? $scheme : 'http';
+}
+
+function mb_expand_stream_url(string $url, array $printer): string
+{
+  if ($url === '') return '';
+  $host = mb_base_host($printer);
+  $scheme = mb_base_scheme($printer);
+  $replacements = [
+    '{id}' => (string)($printer['id'] ?? ''),
+    '{host}' => $host,
+    '{base_host}' => $host,
+    '{scheme}' => $scheme,
+    '{cc2_printer_id}' => mb_cc2dash_printer_id($printer),
+  ];
+  return strtr($url, $replacements);
+}
+
 function mb_default_stream_url(array $printer): string
 {
   $type = strtolower((string)($printer['type'] ?? ''));
   $stream = mb_stream_config($printer);
 
-  if (!empty($stream['url'])) return (string)$stream['url'];
+  if (!empty($stream['url'])) return mb_expand_stream_url((string)$stream['url'], $printer);
 
   if ($type === 'cc2dash') {
     $base = rtrim((string)($printer['base_url'] ?? ''), '/');
@@ -90,6 +119,23 @@ function mb_default_stream_url(array $printer): string
     return $useStream
       ? "$base/api/printers/$pid/camera/stream"
       : "$base/api/printers/$pid/camera/latest.jpg";
+  }
+
+  if ($type === 'moonraker' || $type === 'klipper') {
+    // Optional convenience for common Crowsnest/Mainsail-style MJPEG setups.
+    // Leave stream.url blank and set crowsnest_port/path, or just use stream.url directly.
+    if (!empty($printer['crowsnest_enabled'])) {
+      $host = mb_base_host($printer);
+      if ($host === '') return '';
+      $scheme = mb_base_scheme($printer);
+      $port = (int)($printer['crowsnest_port'] ?? 8080);
+      $useStream = (bool)($stream['use_stream'] ?? true);
+      $path = (string)($useStream
+        ? ($printer['crowsnest_stream_path'] ?? '/webcam/?action=stream')
+        : ($printer['crowsnest_snapshot_path'] ?? '/webcam/?action=snapshot'));
+      if ($path === '' || $path[0] !== '/') $path = '/' . $path;
+      return "$scheme://$host:$port$path";
+    }
   }
 
   return '';
