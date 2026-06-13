@@ -1,4 +1,4 @@
-# merberg.art v2
+# merberg.art v2.0.1
 
 Dark glass portal page for **merberg.art** with printer cards, camera streams, project/about pages, and a configurable PHP backend.
 
@@ -70,17 +70,21 @@ Open `config.php` and enable the printer entries you want.
 ]
 ```
 
-For cc2-dash, the portal first tries:
+For cc2-dash, the portal tries the printer-specific status routes first:
 
 ```text
+/api/status/{printer_id}
 /api/kiosk/status/{printer_id}
 ```
 
-Then it falls back to:
+Then it falls back to the default-printer routes:
 
 ```text
 /api/status
+/api/kiosk/status
 ```
+
+Current cc2-dash status fields such as `hotend_current`, `hotend_target`, `bed_current`, and `bed_target` are normalized into the portal card's Hotend/Bed rows.
 
 For camera streams, if no custom stream URL is set, it uses:
 
@@ -94,7 +98,17 @@ Set `stream.use_stream` to `false` to use the latest-frame endpoint instead:
 /api/printers/{printer_id}/camera/latest.jpg
 ```
 
-### Moonraker / Klipper example
+### Moonraker / Klipper + Crowsnest example
+
+Most Klipper dashboards get camera through Crowsnest. Common MJPEG URLs are:
+
+```text
+http://KLIPPER_HOST:8080/webcam/?action=stream
+http://KLIPPER_HOST/webcam/?action=stream
+http://KLIPPER_HOST:8080/?action=stream
+```
+
+Use the first one unless your Mainsail/Fluidd camera config says otherwise:
 
 ```php
 [
@@ -105,12 +119,30 @@ Set `stream.use_stream` to `false` to use the latest-frame endpoint instead:
   'enabled' => true,
   'stream' => [
     'enabled' => true,
-    'proxy' => false,
+    'proxy' => true,
     'use_stream' => true,
-    'url' => 'http://your-camera-host/webcam/?action=stream',
+    // {host} expands from base_url, so this becomes http://192.168.1.165:8080/webcam/?action=stream
+    'url' => 'http://{host}:8080/webcam/?action=stream',
   ],
 ]
 ```
+
+There is also a helper form if your Crowsnest path is standard:
+
+```php
+'crowsnest_enabled' => true,
+'crowsnest_port' => 8080,
+'crowsnest_stream_path' => '/webcam/?action=stream',
+'crowsnest_snapshot_path' => '/webcam/?action=snapshot',
+'stream' => [
+  'enabled' => true,
+  'proxy' => true,
+  'use_stream' => true,
+  'url' => '',
+],
+```
+
+Use `proxy=true` if merberg.art is served over HTTPS or from a different network path. Otherwise browsers may block the raw `http://LAN-IP` camera as mixed content.
 
 ### OctoPrint example
 
@@ -138,7 +170,7 @@ Set `stream.use_stream` to `false` to use the latest-frame endpoint instead:
 - `false`: the browser loads the camera URL directly.
 - `true`: `stream.php` fetches the camera from the server and serves it back from merberg.art.
 
-Use `proxy=true` when the camera or cc2-dash server lives on your private LAN and outside browsers cannot reach it directly.
+Use `proxy=true` when the camera or cc2-dash server lives on your private LAN, when merberg.art is HTTPS but the camera is HTTP, or when outside browsers cannot reach the LAN camera directly. The camera display uses an `<img>` tag, so use an MJPEG or JPEG endpoint, not WebRTC/HLS.
 
 ## Test endpoints
 
@@ -149,6 +181,13 @@ Use `proxy=true` when the camera or cc2-dash server lives on your private LAN an
 /api.php?action=system_stats
 /stream.php?id=cc2_dash
 ```
+
+## v2.0.1 changes
+
+- Added cc2-dash `/api/status/{printer_id}` lookup before kiosk/default fallbacks.
+- Fixed cc2-dash temperature normalization for `hotend_current`, `hotend_target`, `bed_current`, and `bed_target`.
+- Added stream URL template expansion, including `{host}`, `{scheme}`, `{id}`, and `{cc2_printer_id}`.
+- Added optional Crowsnest helper settings for Klipper/Moonraker cameras.
 
 ## Notes
 

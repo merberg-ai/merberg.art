@@ -113,6 +113,47 @@ function portal_first_path($data, array $paths)
   return null;
 }
 
+function portal_key_variants(string $key): array
+{
+  $out = [$key, strtolower($key), strtoupper($key)];
+  if ($key !== '') {
+    $out[] = strtolower($key[0]) . substr($key, 1);
+    $out[] = strtoupper($key[0]) . substr($key, 1);
+  }
+  return array_values(array_unique($out));
+}
+
+function portal_find_key_recursive($node, array $keys, int $depth = 0, int $maxDepth = 6)
+{
+  if ($node === null || $depth > $maxDepth) return null;
+
+  $wanted = [];
+  foreach ($keys as $key) {
+    foreach (portal_key_variants((string)$key) as $variant) {
+      $wanted[$variant] = true;
+    }
+  }
+
+  if (is_array($node)) {
+    foreach ($node as $key => $value) {
+      if (isset($wanted[(string)$key]) && $value !== null && $value !== '') return $value;
+    }
+    foreach ($node as $value) {
+      $found = portal_find_key_recursive($value, $keys, $depth + 1, $maxDepth);
+      if ($found !== null && $found !== '') return $found;
+    }
+  }
+
+  return null;
+}
+
+function portal_first_value($data, array $paths, array $recursiveKeys = [])
+{
+  $value = portal_first_path($data, $paths);
+  if ($value !== null && $value !== '') return $value;
+  return $recursiveKeys ? portal_find_key_recursive($data, $recursiveKeys) : null;
+}
+
 function portal_scalar($value)
 {
   if (is_array($value)) {
@@ -141,12 +182,12 @@ function portal_progress_pct($value): ?float
   return max(0.0, min(100.0, $n));
 }
 
-function portal_temp_from($raw, array $paths): array
+function portal_temp_from($raw, array $paths, array $tempKeys = [], array $targetKeys = []): array
 {
   $node = portal_first_path($raw, $paths);
   if (is_array($node)) {
-    $temp = portal_first_path($node, ['temp', 'actual', 'current', 'temperature', 'value']);
-    $target = portal_first_path($node, ['target', 'target_temp', 'setpoint', 'goal']);
+    $temp = portal_first_value($node, ['temp', 'actual', 'current', 'temperature', 'value'], $tempKeys);
+    $target = portal_first_value($node, ['target', 'target_temp', 'setpoint', 'goal'], $targetKeys);
     return [
       'temp' => portal_number_or_null($temp),
       'target' => portal_number_or_null($target),
@@ -346,9 +387,13 @@ function portal_status_cc2dash(array $printer): array
   if (!empty($printer['api_key'])) $headers[] = 'X-API-Key: ' . $printer['api_key'];
   if (!empty($printer['token'])) $headers[] = 'Authorization: Bearer ' . $printer['token'];
 
+  $encodedPid = rawurlencode($pid);
   $attempts = [
-    "$base/api/kiosk/status/" . rawurlencode($pid),
+    // Full status exposes fields like hotend_current / bed_current in current cc2-dash.
+    "$base/api/status/$encodedPid",
+    "$base/api/kiosk/status/$encodedPid",
     "$base/api/status",
+    "$base/api/kiosk/status",
   ];
 
   $raw = null;
@@ -397,21 +442,36 @@ function portal_status_cc2dash(array $printer): array
 
   $hotend = portal_temp_from($p, [
     'hotend', 'nozzle', 'tool0', 'extruder', 'temps.hotend', 'temps.nozzle', 'temperature.nozzle',
-    'temperature.tool0', 'printer.temperature.tool0', 'print_status.nozzle', 'machine_status.nozzle'
-  ]);
-  // Direct scalar fallbacks.
+    'temperature.tool0', 'printer.temperature.tool0', 'print_status.nozzle', 'machine_status.nozzle',
+    'raw.normalized.temps.nozzle'
+  ], ['hotend_current', 'nozzle_current', 'nozzle_actual', 'extruder_current', 'temperature_nozzle'], ['hotend_target', 'nozzle_target', 'extruder_target', 'target_nozzle']);
+  // Direct scalar fallbacks. Current cc2-dash exposes hotend_current/hotend_target.
   if ($hotend['temp'] === null) {
-    $hotend['temp'] = portal_number_or_null(portal_first_path($p, ['nozzle_temp', 'hotend_temp', 'extruder_temp', 'print_status.nozzle_temp']));
-    $hotend['target'] = portal_number_or_null(portal_first_path($p, ['nozzle_target', 'hotend_target', 'extruder_target', 'print_status.nozzle_target']));
+    $hotend['temp'] = portal_number_or_null(portal_first_value($p, [
+      'hotend_current', 'nozzle_current', 'nozzle_actual', 'nozzle_temp', 'hotend_temp', 'extruder_temp',
+      'print_status.nozzle_temp', 'raw.normalized.temps.nozzle.actual'
+    ], ['hotend_current', 'nozzle_current', 'nozzle_actual', 'nozzle_temp', 'actualNozzleTemp', 'CurrentNozzleTemp']));
+  }
+  if ($hotend['target'] === null) {
+    $hotend['target'] = portal_number_or_null(portal_first_value($p, [
+      'hotend_target', 'nozzle_target', 'extruder_target', 'print_status.nozzle_target',
+      'raw.normalized.temps.nozzle.target'
+    ], ['hotend_target', 'nozzle_target', 'targetNozzleTemp', 'TargetNozzleTemp']));
   }
 
   $bed = portal_temp_from($p, [
     'bed', 'heater_bed', 'temps.bed', 'temperature.bed', 'printer.temperature.bed',
-    'print_status.bed', 'machine_status.bed'
-  ]);
+    'print_status.bed', 'machine_status.bed', 'raw.normalized.temps.bed'
+  ], ['bed_current', 'bed_actual', 'bed_temp', 'temperature_bed'], ['bed_target', 'target_bed']);
   if ($bed['temp'] === null) {
-    $bed['temp'] = portal_number_or_null(portal_first_path($p, ['bed_temp', 'bed_actual', 'print_status.bed_temp']));
-    $bed['target'] = portal_number_or_null(portal_first_path($p, ['bed_target', 'print_status.bed_target']));
+    $bed['temp'] = portal_number_or_null(portal_first_value($p, [
+      'bed_current', 'bed_actual', 'bed_temp', 'print_status.bed_temp', 'raw.normalized.temps.bed.actual'
+    ], ['bed_current', 'bed_actual', 'bed_temp', 'actualBedTemp', 'CurrentBedTemp']));
+  }
+  if ($bed['target'] === null) {
+    $bed['target'] = portal_number_or_null(portal_first_value($p, [
+      'bed_target', 'print_status.bed_target', 'raw.normalized.temps.bed.target'
+    ], ['bed_target', 'targetBedTemp', 'TargetBedTemp']));
   }
 
   $state = portal_fmt_state($state, 'unknown');
