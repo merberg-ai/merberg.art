@@ -1,226 +1,121 @@
 <?php
-header('Content-Type: text/html; charset=utf-8');
-require __DIR__ . '/lib/bootstrap.php';
+require __DIR__ . '/app/helpers.php';
+require __DIR__ . '/app/render.php';
 
-$config = mb_config();
-$site = mb_site();
-$title = $site['title'] ?? 'merberg.art';
-$subtitle = $site['subtitle'] ?? '';
-$accent = $site['accent'] ?? '#ff8a3d';
-$navbar = $site['navbar'] ?? [];
-$currentScript = basename($_SERVER['SCRIPT_NAME']);
-$printers = mb_enabled_printers();
-$publicPrinters = array_map('mb_printer_public_config', $printers);
-$version = $config['version'] ?? '2.0.0';
+$site = require __DIR__ . '/config/site.php';
+$themes = require __DIR__ . '/config/themes.php';
+$pages = require __DIR__ . '/content/pages.php';
+$projects = require __DIR__ . '/content/projects.php';
 
-$bob = $config['bob'] ?? [];
-$bobEnabled = (bool)($bob['enabled'] ?? false);
-$bobShow = (bool)($bob['show_bob'] ?? true);
-$bobClient = [
-  'enabled' => $bobEnabled,
-  'name' => (string)($bob['name'] ?? 'BOB'),
-  'wake_text' => (string)($bob['wake_text'] ?? 'waking up bob...'),
-  'show_bob' => $bobShow,
-  'debug' => (bool)($bob['debug'] ?? false),
-];
-
-$newsFile = __DIR__ . '/news.txt';
-$newsItems = [];
-if (is_file($newsFile)) {
-  $newsItems = array_values(array_filter(
-    array_map('trim', file($newsFile)),
-    fn($L) => $L !== '' && !str_starts_with($L, '#')
-  ));
+if (!empty($site['timezone'])) {
+    date_default_timezone_set($site['timezone']);
 }
-if (!$newsItems) $newsItems = ['System Ready.'];
+
+$themeKey = active_theme($site, $themes);
+$theme = $themes[$themeKey];
+$route = page_from_path(current_path(), $pages);
+$page = $pages[$route['slug']] ?? $pages['home'];
+$isProjectDetail = ($route['type'] ?? '') === 'project';
+$pageTitle = $isProjectDetail && isset($projects[$route['item'] ?? ''])
+    ? $projects[$route['item']]['title'] . ' // ' . $site['name']
+    : ($page['title'] ?? 'home') . ' // ' . $site['name'];
 ?>
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title><?= mb_h($title) ?></title>
-  <link rel="stylesheet" href="assets/style.css?v=<?= mb_asset_version() ?>" />
-  <style>:root{--accent:<?= mb_h($accent) ?>;}</style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="<?= e($site['tagline']) ?>">
+    <title><?= e($pageTitle) ?></title>
+    <link rel="stylesheet" href="/assets/css/site.css?v=<?= e($site['version']) ?>">
+    <style>
+        :root {
+            <?php foreach (($theme['vars'] ?? []) as $name => $value): ?>
+            --<?= e($name) ?>: <?= e($value) ?>;
+            <?php endforeach; ?>
+        }
+    </style>
 </head>
-<body>
-  <div id="loadingState" class="loadingObj">
-    <div class="techSpinner"></div>
-    <div class="techText" id="loadingText">INITIALIZING SYSTEM...</div>
-  </div>
-
-  <header class="topbar">
-    <a href="index.php" class="brand">
-      <div class="logo">MB</div>
-      <div class="titles">
-        <div class="title"><?= mb_h($title) ?></div>
-        <div class="subtitle"><?= mb_h($subtitle) ?></div>
-      </div>
-    </a>
-
-    <nav class="navbar">
-      <?php foreach ($navbar as $item): ?>
-        <a href="<?= mb_h($item['url'] ?? '#') ?>" class="<?= mb_h(mb_current_nav_class($item, $currentScript)) ?>"><?= mb_h($item['label'] ?? 'Link') ?></a>
-      <?php endforeach; ?>
-    </nav>
-
-    <div class="actions">
-      <div id="statsTicker" class="techText ticker">Initializing...</div>
-      <button class="btn ghost" id="refreshBtn" title="Refresh" type="button">Refresh</button>
+<body class="theme-<?= e($themeKey) ?><?= !empty($site['show_crt_overlay']) ? ' has-crt' : '' ?>">
+    <?php if (!empty($site['show_boot_sequence'])): ?>
+    <div class="boot-screen" data-boot-screen>
+        <div class="boot-box">
+            <div class="terminal-title">INITIALIZING <?= e(strtoupper($site['name'])) ?></div>
+            <div class="terminal-lines">
+                <?php foreach (($site['boot_lines'] ?? []) as $line): ?>
+                    <div><?= e($line) ?></div>
+                <?php endforeach; ?>
+            </div>
+        </div>
     </div>
-  </header>
-
-  <main class="wrap">
-    <section class="hero card portalHero">
-      <div>
-        <div class="eyebrow">MERBERG.ART // V<?= mb_h($version) ?></div>
-        <h1>Lab portal</h1>
-      </div>
-      <div class="heroStats">
-        <div><span><?= count($printers) ?></span><small>enabled printers</small></div>
-        <div><span>3</span><small>backend types</small></div>
-      </div>
-    </section>
-
-    <section class="grid" id="printerGrid" data-printers='<?= mb_h(json_encode($publicPrinters, JSON_UNESCAPED_SLASHES)) ?>'>
-      <?php if (!$printers): ?>
-        <article class="card setupCard">
-          <div class="cardHead">
-            <div>
-              <div class="cardTitle">NO_PRINTERS_ENABLED <span class="cardSpinner"></span></div>
-              <div class="cardMeta">
-                <span class="pill status warn">config required</span>
-                <span class="pill">v<?= mb_h($version) ?></span>
-              </div>
-            </div>
-          </div>
-          <div class="rows">
-            <div class="row"><span class="k">Edit</span><span class="v mono">config.php</span></div>
-            <div class="row"><span class="k">cc2-dash</span><span class="v mono">type = cc2dash</span></div>
-            <div class="row"><span class="k">Klipper</span><span class="v mono">type = moonraker</span></div>
-            <div class="row"><span class="k">OctoPrint</span><span class="v mono">type = octoprint</span></div>
-          </div>
-          <div class="foot"><div class="small mono">Enable at least one printer to populate cards.</div></div>
-        </article>
-      <?php endif; ?>
-
-      <?php foreach ($printers as $p):
-        $pid = (string)($p['id'] ?? '');
-        $ptype = (string)($p['type'] ?? 'unknown');
-        $camSrc = mb_camera_src($p);
-        $stream = mb_stream_config($p);
-      ?>
-        <article class="card printerCard" data-id="<?= mb_h($pid) ?>">
-          <div class="cardHead">
-            <div>
-              <div class="cardTitle">
-                <?= mb_h($p['name'] ?? $pid) ?>
-                <span class="cardSpinner"></span>
-              </div>
-              <div class="cardMeta">
-                <span class="pill source" data-k="source"><?= mb_h($ptype) ?></span>
-                <span class="pill status" data-k="state">loading…</span>
-                <?php if (!empty(($config['bob']['enabled'] ?? false))): ?>
-                  <span class="pill power power-unknown" data-k="power">power: ?</span>
-                <?php endif; ?>
-              </div>
-            </div>
-            <div class="right">
-              <div class="big" data-k="progress">--%</div>
-              <div class="small" data-k="eta">--</div>
-            </div>
-          </div>
-
-          <div class="rows">
-            <button class="row rowButton" type="button" data-action="field" data-field="job" data-label="Job">
-              <span class="k">Job</span><span class="v" data-k="job">--</span>
-            </button>
-            <button class="row rowButton" type="button" data-action="field" data-field="file" data-label="File">
-              <span class="k">File</span><span class="v mono" data-k="file">--</span>
-            </button>
-            <button class="row rowButton" type="button" data-action="field" data-field="hotend" data-label="Hotend">
-              <span class="k">Hotend</span><span class="v" data-k="hotend">--</span>
-            </button>
-            <button class="row rowButton" type="button" data-action="field" data-field="bed" data-label="Bed">
-              <span class="k">Bed</span><span class="v" data-k="bed">--</span>
-            </button>
-            <div class="row"><span class="k">Connection</span><span class="v" data-k="connection">--</span></div>
-          </div>
-
-          <?php if ($camSrc): ?>
-            <div class="cam">
-              <div class="camHead">
-                <span class="k">Camera</span>
-                <span class="camActions">
-                  <span class="pill tinyPill"><?= !empty($stream['proxy']) ? 'proxied' : 'direct' ?></span>
-                  <a class="link" href="<?= mb_h($camSrc) ?>" target="_blank" rel="noopener">open</a>
-                </span>
-              </div>
-              <div class="camFrame">
-                <img class="camImg" alt="<?= mb_h(($p['name'] ?? $pid) . ' camera') ?>" src="<?= mb_h($camSrc) ?>" loading="lazy" referrerpolicy="no-referrer" />
-              </div>
-            </div>
-          <?php else: ?>
-            <div class="cam muted">No camera stream configured.</div>
-          <?php endif; ?>
-
-          <div class="foot">
-            <div class="pbar" aria-label="Progress"><div class="pbarFill" data-k="pbarFill" style="width:0%"></div></div>
-            <div class="small mono" data-k="updated">--</div>
-          </div>
-        </article>
-      <?php endforeach; ?>
-    </section>
-
-    <?php if ($bobEnabled): ?>
-      <section class="grid bobGrid" id="bobGrid" <?= $bobShow ? '' : 'hidden' ?>>
-        <article class="card bobCard" id="bobCard" data-bob='<?= mb_h(json_encode($bobClient, JSON_UNESCAPED_SLASHES)) ?>'>
-          <div class="cardHead">
-            <div>
-              <div class="cardTitle"><?= mb_h($bobClient['name']) ?> <span class="cardSpinner" id="bobActivity"></span></div>
-              <div class="cardMeta">
-                <span class="pill">assistant</span>
-                <span class="pill status bobStatus" id="bobStatus">connecting…</span>
-                <span class="pill bobTarget" id="bobTarget">all printers</span>
-              </div>
-            </div>
-            <div class="right">
-              <button class="btn ghost tiny" id="bobResetBtn" type="button" title="Reset chat">Reset</button>
-              <button class="btn ghost tiny" id="bobExportBtn" type="button" title="Export chat">Export</button>
-            </div>
-          </div>
-          <div class="bobChat" id="bobChat" aria-live="polite"></div>
-          <div class="bobComposer">
-            <input class="bobInput" id="bobInput" type="text" autocomplete="off" placeholder="Ask Bob something..." />
-            <button class="btn" id="bobSendBtn" type="button">Send</button>
-          </div>
-        </article>
-      </section>
     <?php endif; ?>
-  </main>
 
-  <div class="newsContainer" id="newsContainer" data-news='<?= mb_h(json_encode($newsItems, JSON_UNESCAPED_SLASHES)) ?>'>
-    <div class="newsContent" id="newsContent">Initializing feed...</div>
-  </div>
+    <div class="site-shell">
+        <header class="site-header panel">
+            <a class="brand" href="/" aria-label="merberg.art home">
+                <span class="brand-mark">MB</span>
+                <span><strong><?= e($site['name']) ?></strong><small><?= e($site['tagline']) ?></small></span>
+            </a>
+            <nav class="site-nav" aria-label="Main navigation">
+                <?php foreach (($site['nav'] ?? []) as $nav): ?>
+                    <?php if (!($nav['enabled'] ?? true)) continue; ?>
+                    <?php $active = (current_path() === rtrim($nav['path'], '/') || (current_path() === '/' && $nav['path'] === '/')); ?>
+                    <a class="<?= $active ? 'active' : '' ?>" href="<?= e($nav['path']) ?>"><?= e($nav['label']) ?></a>
+                <?php endforeach; ?>
+            </nav>
+            <form class="theme-picker" method="get" action="<?= e(current_path()) ?>">
+                <label for="theme">theme</label>
+                <select id="theme" name="theme" onchange="this.form.submit()">
+                    <?php foreach ($themes as $key => $item): ?>
+                        <option value="<?= e($key) ?>" <?= $key === $themeKey ? 'selected' : '' ?>><?= e($item['label'] ?? $key) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+        </header>
 
-  <footer class="footer">
-    <span class="dim">[merberg.art v<?= mb_h($version) ?>]</span>
-    <span class="dot">•</span>
-    <span class="dim">cc2-dash / moonraker / octoprint portal</span>
-  </footer>
+        <main>
+            <?php render_ascii_logo(); ?>
 
-  <div class="modal hidden" id="rawModal" role="dialog" aria-modal="true" aria-hidden="true">
-    <div class="modalBackdrop" data-action="close"></div>
-    <div class="modalCard">
-      <div class="modalHead">
-        <div class="modalTitle" id="rawTitle">Raw Data</div>
-        <button class="btn ghost" type="button" data-action="close">Close</button>
-      </div>
-      <pre class="modalBody mono" id="rawBody">{}</pre>
+            <?php if (!empty($route['not_found'])): ?>
+                <section class="callout panel danger-callout">
+                    <p class="eyebrow">404_ROUTE_WARNING</p>
+                    <h1>route not found, dumped back to home</h1>
+                    <p>That URL is not mapped in content/pages.php. Add it there or check the slug.</p>
+                </section>
+            <?php endif; ?>
+
+            <?php
+            if ($isProjectDetail) {
+                render_project_detail((string)$route['item'], $projects);
+            } else {
+                foreach (($page['blocks'] ?? []) as $block) {
+                    render_block($block, $site, $projects);
+                }
+            }
+            ?>
+        </main>
+
+        <footer class="site-footer panel">
+            <div>
+                <strong><?= e($site['name']) ?> <?= e($site['version']) ?></strong>
+                <span>// <?= e(date('Y-m-d H:i T')) ?></span>
+            </div>
+            <div class="footer-lines">
+                <?php foreach (($site['footer_lines'] ?? []) as $line): ?>
+                    <span><?= e($line) ?></span>
+                <?php endforeach; ?>
+            </div>
+        </footer>
     </div>
-  </div>
 
-  <script src="assets/app.js?v=<?= mb_asset_version() ?>"></script>
-  <?php if ($bobEnabled): ?><script src="assets/bob.js?v=<?= mb_asset_version() ?>"></script><?php endif; ?>
+    <script>
+        window.MERBERG_CONFIG = <?= json_encode([
+            'bootLines' => $site['boot_lines'] ?? [],
+            'theme' => $themeKey,
+            'version' => $site['version'] ?? 'dev',
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+    </script>
+    <script src="/assets/js/site.js?v=<?= e($site['version']) ?>" defer></script>
 </body>
 </html>
