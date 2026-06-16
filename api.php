@@ -215,8 +215,24 @@ function portal_fmt_state($state, $fallback = 'unknown'): string
   return $state !== '' ? $state : $fallback;
 }
 
+function portal_public_error_message(string $message): string
+{
+  $message = preg_replace('#\bfrom\s+https?://[^\s)]+#i', '', $message);
+  $message = preg_replace('#https?://[^\s)]+#i', '', $message);
+  $message = preg_replace('/\bto\s+(?:\d{1,3}\.){3}\d{1,3}(?:\s+port\s+\d+)?/i', '', $message);
+  $message = preg_replace('/\bto\s+(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?/i', '', $message);
+  $message = preg_replace('/\bhost:\s*(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?/i', 'host', $message);
+  $message = preg_replace('/\bhost:\s*(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?/i', 'host', $message);
+  $message = preg_replace('/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/[^\s)]*)?/i', '', $message);
+  $message = preg_replace('/\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:\/[^\s)]*)?/i', '', $message);
+  $message = preg_replace('/\s+([.,;:])/', '$1', $message);
+  $message = preg_replace('/\s{2,}/', ' ', $message);
+  return trim((string)$message);
+}
+
 function portal_build_error_status(array $printer, Exception $e): array
 {
+  $message = portal_public_error_message($e->getMessage()) ?: 'Connection error';
   return [
     'id' => (string)($printer['id'] ?? 'unknown'),
     'name' => (string)($printer['name'] ?? ($printer['id'] ?? 'unknown')),
@@ -233,9 +249,9 @@ function portal_build_error_status(array $printer, Exception $e): array
       'offline' => true,
       'stale' => false,
       'health' => 'offline',
-      'reason' => $e->getMessage(),
+      'reason' => $message,
     ],
-    'error' => $e->getMessage(),
+    'error' => $message,
   ];
 }
 
@@ -531,6 +547,12 @@ function portal_card_from_status(array $s, ?array $powerMap, array $powerKeyById
     $powerDevice = isset($powerMap[$powerKeyById[$id]]['device']) ? (string)$powerMap[$powerKeyById[$id]]['device'] : null;
   }
 
+  $connection = $s['connection'] ?? null;
+  if (is_array($connection) && !empty($connection['offline']) && !empty($connection['reason'])) {
+    $connection['reason'] = portal_public_error_message((string)$connection['reason']) ?: 'Connection error';
+  }
+  $error = isset($s['error']) ? portal_public_error_message((string)$s['error']) : null;
+
   return [
     'state' => (string)($s['state'] ?? 'unknown'),
     'source' => (string)($s['source'] ?? $s['type'] ?? 'unknown'),
@@ -540,10 +562,10 @@ function portal_card_from_status(array $s, ?array $powerMap, array $powerKeyById
     'file' => (string)($s['file'] ?? '--'),
     'hotend' => portal_fmt_temp($s['hotend']['temp'] ?? null, $s['hotend']['target'] ?? null),
     'bed' => portal_fmt_temp($s['bed']['temp'] ?? null, $s['bed']['target'] ?? null),
-    'connection' => $s['connection'] ?? null,
+    'connection' => $connection,
     'power_state' => $powerState,
     'power_device' => $powerDevice,
-    'error' => $s['error'] ?? null,
+    'error' => $error,
   ];
 }
 
@@ -555,7 +577,7 @@ try {
     mb_json_response([
       'ok' => true,
       'app' => 'merberg.art',
-      'version' => $config['version'] ?? '2.0.0',
+      'version' => $config['version'] ?? '2.0.2',
       'printers_enabled' => count(mb_enabled_printers()),
       'ts' => time(),
     ]);
@@ -626,7 +648,7 @@ try {
     mb_json_response([
       'cards' => $cards,
       'raw' => $statuses,
-      'version' => $config['version'] ?? '2.0.0',
+      'version' => $config['version'] ?? '2.0.2',
       'ts' => time(),
     ]);
   }

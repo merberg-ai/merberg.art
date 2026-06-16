@@ -11,7 +11,8 @@ $navbar = $site['navbar'] ?? [];
 $currentScript = basename($_SERVER['SCRIPT_NAME']);
 $printers = mb_enabled_printers();
 $publicPrinters = array_map('mb_printer_public_config', $printers);
-$version = $config['version'] ?? '2.0.0';
+$version = $config['version'] ?? '2.0.2';
+$build = mb_build_info();
 
 $bob = $config['bob'] ?? [];
 $bobEnabled = (bool)($bob['enabled'] ?? false);
@@ -75,9 +76,6 @@ if (!$newsItems) $newsItems = ['System Ready.'];
       <div>
         <div class="eyebrow">MERBERG.ART // V<?= mb_h($version) ?></div>
         <h1>Lab portal</h1>
-      </div>
-      <div class="heroStats">
-        <div><span><?= count($printers) ?></span><small>enabled printers</small></div>
       </div>
     </section>
 
@@ -203,9 +201,18 @@ if (!$newsItems) $newsItems = ['System Ready.'];
   </div>
 
   <footer class="footer">
-    <span class="dim">[merberg.art v<?= mb_h($version) ?>]</span>
-    <span class="dot">•</span>
-    <span class="dim">cc2-dash / moonraker / octoprint portal</span>
+    <div>
+      <span class="dim">[merberg.art v<?= mb_h($version) ?>]</span>
+      <span class="dot">•</span>
+      <span class="dim">cc2-dash / moonraker / octoprint portal</span>
+    </div>
+    <?php if (($build['branch'] ?? '') !== '' || ($build['commit'] ?? '') !== ''): ?>
+      <div class="buildInfo">
+        <?php if (($build['branch'] ?? '') !== ''): ?>branch <?= mb_h($build['branch']) ?><?php endif; ?>
+        <?php if (($build['branch'] ?? '') !== '' && ($build['commit'] ?? '') !== ''): ?><span class="dot">•</span><?php endif; ?>
+        <?php if (($build['commit'] ?? '') !== ''): ?>commit <?= mb_h($build['commit']) ?><?php endif; ?>
+      </div>
+    <?php endif; ?>
   </footer>
 
   <div class="modal hidden" id="rawModal" role="dialog" aria-modal="true" aria-hidden="true">

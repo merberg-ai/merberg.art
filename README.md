@@ -1,4 +1,4 @@
-# merberg.art v2.0.1
+# merberg.art v2.0.2
 
 Dark glass portal page for **merberg.art** with printer cards, camera streams, project/about pages, and a configurable PHP backend.
 

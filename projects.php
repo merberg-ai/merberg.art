@@ -1,13 +1,17 @@
 <?php
 header('Content-Type: text/html; charset=utf-8');
 
-$config = require __DIR__ . '/config.php';
+require __DIR__ . '/lib/bootstrap.php';
+
+$config = mb_config();
 if (!$config) {
   http_response_code(500);
   die("Invalid config.php");
 }
 $site = $config['site'] ?? [];
-$title = htmlspecialchars($site['title'] ?? '[merberg.art v2.0.0]');
+$version = $config['version'] ?? '2.0.2';
+$build = mb_build_info();
+$title = htmlspecialchars($site['title'] ?? '[merberg.art v' . $version . ']');
 $subtitle = htmlspecialchars($site['subtitle'] ?? '');
 $accent = $site['accent'] ?? '#7c3aed';
 $navbar = $site['navbar'] ?? [];
@@ -25,7 +29,7 @@ $projectsContent = file_exists($projectsFile) ? file_get_contents($projectsFile)
   <title>
     <?= $title ?> - Projects
   </title>
-  <link rel="stylesheet" href="assets/style.css?v=2.0.0" />
+  <link rel="stylesheet" href="assets/style.css?v=<?= htmlspecialchars($version) ?>" />
   <style>
     :root {
       --accent:
@@ -111,12 +115,21 @@ $projectsContent = file_exists($projectsFile) ? file_get_contents($projectsFile)
   </div>
 
   <footer class="footer">
-    <span class="dim">[merberg.art v2.0.0]</span>
-    <span class="dot">•</span>
-    <span class="dim">cc2-dash / moonraker / octoprint portal</span>
+    <div>
+      <span class="dim">[merberg.art v<?= htmlspecialchars($version) ?>]</span>
+      <span class="dot">•</span>
+      <span class="dim">cc2-dash / moonraker / octoprint portal</span>
+    </div>
+    <?php if (($build['branch'] ?? '') !== '' || ($build['commit'] ?? '') !== ''): ?>
+      <div class="buildInfo">
+        <?php if (($build['branch'] ?? '') !== ''): ?>branch <?= htmlspecialchars($build['branch']) ?><?php endif; ?>
+        <?php if (($build['branch'] ?? '') !== '' && ($build['commit'] ?? '') !== ''): ?><span class="dot">•</span><?php endif; ?>
+        <?php if (($build['commit'] ?? '') !== ''): ?>commit <?= htmlspecialchars($build['commit']) ?><?php endif; ?>
+      </div>
+    <?php endif; ?>
   </footer>
 
-  <script src="assets/app.js?v=2.0.0"></script>
+  <script src="assets/app.js?v=<?= htmlspecialchars($version) ?>"></script>
   <script>window.addEventListener('load', () => document.body.classList.add('loaded'));</script>
 </body>
 

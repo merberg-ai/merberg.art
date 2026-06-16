@@ -46,8 +46,65 @@ function mb_current_nav_class(array $item, string $currentScript): string
 
 function mb_asset_version(): string
 {
-  $v = mb_config()['version'] ?? '2.0.0';
+  $v = mb_config()['version'] ?? '2.0.2';
   return rawurlencode((string)$v);
+}
+
+function mb_git_dir(): string
+{
+  $root = dirname(__DIR__);
+  $git = $root . '/.git';
+  if (is_dir($git)) return $git;
+  if (!is_file($git)) return '';
+
+  $raw = trim((string)@file_get_contents($git));
+  if (!preg_match('/^gitdir:\s*(.+)$/i', $raw, $m)) return '';
+
+  $dir = trim($m[1]);
+  $isAbsolute = str_starts_with($dir, '/') || preg_match('/^[A-Za-z]:[\/\\\\]/', $dir);
+  $path = $isAbsolute ? $dir : $root . '/' . $dir;
+  $real = realpath($path);
+  return $real !== false && is_dir($real) ? $real : '';
+}
+
+function mb_git_ref_commit(string $gitDir, string $ref): string
+{
+  $refPath = $gitDir . '/' . str_replace('/', DIRECTORY_SEPARATOR, $ref);
+  if (is_file($refPath)) return trim((string)@file_get_contents($refPath));
+
+  $packed = $gitDir . '/packed-refs';
+  if (!is_file($packed)) return '';
+
+  $lines = @file($packed, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+  if (!is_array($lines)) return '';
+  foreach ($lines as $line) {
+    if ($line === '' || $line[0] === '#' || $line[0] === '^') continue;
+    [$commit, $packedRef] = array_pad(explode(' ', trim($line), 2), 2, '');
+    if ($packedRef === $ref) return $commit;
+  }
+  return '';
+}
+
+function mb_build_info(): array
+{
+  $gitDir = mb_git_dir();
+  $info = ['branch' => '', 'commit' => ''];
+  if ($gitDir === '') return $info;
+
+  $head = trim((string)@file_get_contents($gitDir . '/HEAD'));
+  if ($head === '') return $info;
+
+  if (str_starts_with($head, 'ref: ')) {
+    $ref = trim(substr($head, 5));
+    $info['branch'] = preg_replace('#^refs/heads/#', '', $ref);
+    $info['commit'] = mb_git_ref_commit($gitDir, $ref);
+  } else {
+    $info['branch'] = 'detached';
+    $info['commit'] = $head;
+  }
+
+  if ($info['commit'] !== '') $info['commit'] = substr($info['commit'], 0, 7);
+  return $info;
 }
 
 function mb_stream_config(array $printer): array
