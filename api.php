@@ -255,26 +255,6 @@ function portal_build_error_status(array $printer, Exception $e): array
   ];
 }
 
-/* ----------------------------- BOB power map ----------------------------- */
-function portal_get_bob_power_map(array $config, int $ttlSeconds): ?array
-{
-  $bob = $config['bob'] ?? [];
-  if (empty($bob['enabled']) || empty($bob['api_base'])) return null;
-
-  $cached = portal_cache_get('bob_power', $ttlSeconds);
-  if (is_array($cached)) return $cached;
-
-  try {
-    $json = portal_http_get_json(rtrim((string)$bob['api_base'], '/') . '/power', [], 15);
-  } catch (Exception $e) {
-    return null;
-  }
-
-  if (empty($json['ok']) || !isset($json['power']) || !is_array($json['power'])) return null;
-  portal_cache_set('bob_power', $json['power']);
-  return $json['power'];
-}
-
 /* -------------------------- upstream adapters ----------------------------- */
 function portal_status_moonraker(array $printer): array
 {
@@ -537,16 +517,8 @@ function portal_build_statuses(array $config): array
   return $statuses;
 }
 
-function portal_card_from_status(array $s, ?array $powerMap, array $powerKeyById): array
+function portal_card_from_status(array $s): array
 {
-  $id = (string)($s['id'] ?? 'unknown');
-  $powerState = null;
-  $powerDevice = null;
-  if ($powerMap && isset($powerKeyById[$id]) && isset($powerMap[$powerKeyById[$id]])) {
-    $powerState = isset($powerMap[$powerKeyById[$id]]['state']) ? (string)$powerMap[$powerKeyById[$id]]['state'] : null;
-    $powerDevice = isset($powerMap[$powerKeyById[$id]]['device']) ? (string)$powerMap[$powerKeyById[$id]]['device'] : null;
-  }
-
   $connection = $s['connection'] ?? null;
   if (is_array($connection) && !empty($connection['offline']) && !empty($connection['reason'])) {
     $connection['reason'] = portal_public_error_message((string)$connection['reason']) ?: 'Connection error';
@@ -563,8 +535,6 @@ function portal_card_from_status(array $s, ?array $powerMap, array $powerKeyById
     'hotend' => portal_fmt_temp($s['hotend']['temp'] ?? null, $s['hotend']['target'] ?? null),
     'bed' => portal_fmt_temp($s['bed']['temp'] ?? null, $s['bed']['target'] ?? null),
     'connection' => $connection,
-    'power_state' => $powerState,
-    'power_device' => $powerDevice,
     'error' => $error,
   ];
 }
@@ -623,7 +593,6 @@ try {
 
   $cacheCfg = $config['cache'] ?? [];
   $ttlStatus = (int)($cacheCfg['ttl_status_s'] ?? 4);
-  $ttlBobPower = (int)($cacheCfg['ttl_bob_power_s'] ?? 3);
 
   $statuses = portal_cache_get('statuses_v2', $ttlStatus);
   if (!is_array($statuses)) {
@@ -632,17 +601,9 @@ try {
   }
 
   if ($action === 'cards') {
-    $powerMap = portal_get_bob_power_map($config, $ttlBobPower);
-    $powerKeyById = [];
-    foreach ($config['printers'] ?? [] as $pconf) {
-      $pid = (string)($pconf['id'] ?? '');
-      if ($pid === '') continue;
-      $powerKeyById[$pid] = (string)($pconf['power_key'] ?? ($pconf['name'] ?? $pid));
-    }
-
     $cards = [];
     foreach ($statuses as $s) {
-      $cards[(string)($s['id'] ?? 'unknown')] = portal_card_from_status($s, $powerMap, $powerKeyById);
+      $cards[(string)($s['id'] ?? 'unknown')] = portal_card_from_status($s);
     }
 
     mb_json_response([

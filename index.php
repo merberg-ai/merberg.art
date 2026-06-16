@@ -14,17 +14,6 @@ $publicPrinters = array_map('mb_printer_public_config', $printers);
 $version = $config['version'] ?? '2.0.2';
 $build = mb_build_info();
 
-$bob = $config['bob'] ?? [];
-$bobEnabled = (bool)($bob['enabled'] ?? false);
-$bobShow = (bool)($bob['show_bob'] ?? true);
-$bobClient = [
-  'enabled' => $bobEnabled,
-  'name' => (string)($bob['name'] ?? 'BOB'),
-  'wake_text' => (string)($bob['wake_text'] ?? 'waking up bob...'),
-  'show_bob' => $bobShow,
-  'debug' => (bool)($bob['debug'] ?? false),
-];
-
 $newsFile = __DIR__ . '/news.txt';
 $newsItems = [];
 if (is_file($newsFile)) {
@@ -117,9 +106,6 @@ if (!$newsItems) $newsItems = ['System Ready.'];
               <div class="cardMeta">
                 <span class="pill source" data-k="source"><?= mb_h($ptype) ?></span>
                 <span class="pill status" data-k="state">loading…</span>
-                <?php if (!empty(($config['bob']['enabled'] ?? false))): ?>
-                  <span class="pill power power-unknown" data-k="power">power: ?</span>
-                <?php endif; ?>
               </div>
             </div>
             <div class="right">
@@ -169,31 +155,6 @@ if (!$newsItems) $newsItems = ['System Ready.'];
       <?php endforeach; ?>
     </section>
 
-    <?php if ($bobEnabled): ?>
-      <section class="grid bobGrid" id="bobGrid" <?= $bobShow ? '' : 'hidden' ?>>
-        <article class="card bobCard" id="bobCard" data-bob='<?= mb_h(json_encode($bobClient, JSON_UNESCAPED_SLASHES)) ?>'>
-          <div class="cardHead">
-            <div>
-              <div class="cardTitle"><?= mb_h($bobClient['name']) ?> <span class="cardSpinner" id="bobActivity"></span></div>
-              <div class="cardMeta">
-                <span class="pill">assistant</span>
-                <span class="pill status bobStatus" id="bobStatus">connecting…</span>
-                <span class="pill bobTarget" id="bobTarget">all printers</span>
-              </div>
-            </div>
-            <div class="right">
-              <button class="btn ghost tiny" id="bobResetBtn" type="button" title="Reset chat">Reset</button>
-              <button class="btn ghost tiny" id="bobExportBtn" type="button" title="Export chat">Export</button>
-            </div>
-          </div>
-          <div class="bobChat" id="bobChat" aria-live="polite"></div>
-          <div class="bobComposer">
-            <input class="bobInput" id="bobInput" type="text" autocomplete="off" placeholder="Ask Bob something..." />
-            <button class="btn" id="bobSendBtn" type="button">Send</button>
-          </div>
-        </article>
-      </section>
-    <?php endif; ?>
   </main>
 
   <div class="newsContainer" id="newsContainer" data-news='<?= mb_h(json_encode($newsItems, JSON_UNESCAPED_SLASHES)) ?>'>
@@ -227,6 +188,5 @@ if (!$newsItems) $newsItems = ['System Ready.'];
   </div>
 
   <script src="assets/app.js?v=<?= mb_asset_version() ?>"></script>
-  <?php if ($bobEnabled): ?><script src="assets/bob.js?v=<?= mb_asset_version() ?>"></script><?php endif; ?>
 </body>
 </html>

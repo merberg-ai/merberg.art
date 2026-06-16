@@ -29,7 +29,6 @@ return [
 
   'cache' => [
     'ttl_status_s' => 4,
-    'ttl_bob_power_s' => 3,
   ],
 
   'printers' => [
@@ -91,17 +90,4 @@ return [
     ],
   ],
 
-  'ai' => [
-    'ollama_url' => 'http://192.168.1.24:11434',
-    'model' => 'printer-llama',
-  ],
-
-  'bob' => [
-    'enabled' => false,
-    'name' => 'BOB',
-    'wake_text' => 'waking up bob...',
-    'api_base' => 'http://192.168.1.11:9696',
-    'show_bob' => true,
-    'debug' => false,
-  ],
 ];

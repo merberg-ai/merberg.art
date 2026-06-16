@@ -105,29 +105,6 @@ function connectionText(conn, err) {
   return `${health}${reason}`;
 }
 
-function applyPower(card, data) {
-  const pwr = data.power_state === undefined ? null : data.power_state;
-  const pwrPill = el(card, 'power');
-  if (!pwrPill) return;
-
-  const norm = String(pwr || '').toLowerCase();
-  let label = 'power: ?';
-  pwrPill.classList.remove('power-on', 'power-off', 'power-unknown');
-  card.classList.remove('poweredOff');
-
-  if (['on', 'true', '1'].includes(norm)) {
-    label = 'power: on';
-    pwrPill.classList.add('power-on');
-  } else if (['off', 'false', '0'].includes(norm)) {
-    label = 'power: off';
-    pwrPill.classList.add('power-off');
-    card.classList.add('poweredOff');
-  } else {
-    pwrPill.classList.add('power-unknown');
-  }
-  pwrPill.textContent = label;
-}
-
 function applyCard(id, data) {
   const card = cardEl(id);
   if (!card || !data) return;
@@ -139,7 +116,6 @@ function applyCard(id, data) {
   card.dataset.state = classifyState(state, data.connection);
 
   typeText(el(card, 'source'), data.source || 'unknown');
-  applyPower(card, data);
 
   const pct = data.progress === null || data.progress === undefined ? null : Number(data.progress);
   const pctText = pct !== null && !Number.isNaN(pct) ? `${Math.round(pct)}%` : '--%';
