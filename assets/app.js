@@ -81,11 +81,27 @@ function fmtETA(sec) {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function publicConnectionMessage(message) {
+  return String(message || '')
+    .replace(/\bfrom\s+https?:\/\/[^\s)]+/gi, '')
+    .replace(/https?:\/\/[^\s)]+/gi, '')
+    .replace(/\bto\s+(?:\d{1,3}\.){3}\d{1,3}(?:\s+port\s+\d+)?/g, '')
+    .replace(/\bto\s+(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?/gi, '')
+    .replace(/\bhost:\s*(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?/g, 'host')
+    .replace(/\bhost:\s*(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?/gi, 'host')
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?(?:\/[^\s)]*)?/g, '')
+    .replace(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?::\d+)?(?:\/[^\s)]*)?/gi, '')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 function connectionText(conn, err) {
-  if (err) return err;
+  if (err) return publicConnectionMessage(err) || 'Connection error';
   if (!conn) return '--';
   const health = conn.health || (conn.offline ? 'offline' : conn.stale ? 'stale' : 'ok');
-  const reason = conn.reason ? ` · ${conn.reason}` : '';
+  const reasonText = conn.offline ? publicConnectionMessage(conn.reason) : conn.reason;
+  const reason = reasonText ? ` · ${reasonText}` : '';
   return `${health}${reason}`;
 }
 

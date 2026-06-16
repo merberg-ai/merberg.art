@@ -78,7 +78,6 @@ if (!$newsItems) $newsItems = ['System Ready.'];
       </div>
       <div class="heroStats">
         <div><span><?= count($printers) ?></span><small>enabled printers</small></div>
-        <div><span>3</span><small>backend types</small></div>
       </div>
     </section>
 
